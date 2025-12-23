@@ -8,6 +8,18 @@ DESC_CSV = "data/steam_description_data.csv"
 games_df = pd.read_csv(GAME_CSV)
 desc_df = pd.read_csv(DESC_CSV)
 
+# ---------- 先依 owners 篩選 ----------
+if "owners" not in games_df.columns:
+    raise ValueError("steam.csv 中找不到 owners 欄位")
+
+# 移除 owners 為 0-20000 與 20000~50000
+remove_owners = ["0-20000"]
+before_cnt = len(games_df)
+
+games_df = games_df[~games_df["owners"].isin(remove_owners)]
+
+print(f"Owners 篩選完成：{before_cnt} → {len(games_df)}")
+
 # ---------- 自動找 ID 欄位 ----------
 id_candidates = ["appid", "steam_appid", "app_id", "id", "game_id"]
 
@@ -53,6 +65,7 @@ desc_df = desc_df[[desc_id_col, desc_col]]
 desc_df = desc_df.rename(columns={desc_id_col: game_id_col})
 
 df = games_df.merge(desc_df, on=game_id_col, how="inner")
+
 # ---------- 計算正評比例 ----------
 if "positive_ratings" in df.columns and "negative_ratings" in df.columns:
     df["positive_ratio"] = df["positive_ratings"] / (
@@ -61,6 +74,10 @@ if "positive_ratings" in df.columns and "negative_ratings" in df.columns:
 else:
     raise ValueError("找不到 positive_ratings 或 negative_ratings 欄位")
 
+# ---------- 移除正評比例 < 50% ----------
+before_cnt = len(df)
+df = df[df["positive_ratio"] >= 0.5]
+print(f"正評比例篩選完成：{before_cnt} → {len(df)}")
 
 print("合併後資料筆數：", len(df))
 
