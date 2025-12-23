@@ -53,13 +53,22 @@ desc_df = desc_df[[desc_id_col, desc_col]]
 desc_df = desc_df.rename(columns={desc_id_col: game_id_col})
 
 df = games_df.merge(desc_df, on=game_id_col, how="inner")
+# ---------- 計算正評比例 ----------
+if "positive_ratings" in df.columns and "negative_ratings" in df.columns:
+    df["positive_ratio"] = df["positive_ratings"] / (
+        df["positive_ratings"] + df["negative_ratings"]
+    )
+else:
+    raise ValueError("找不到 positive_ratings 或 negative_ratings 欄位")
+
 
 print("合併後資料筆數：", len(df))
 
 # ---------- 組語意內容 ----------
 text_cols = [col for col in ["genres", "steamspy_tags", "categories"] if col in df.columns]
 
-df = df[[game_id_col, "name", desc_col] + text_cols]
+df = df[[game_id_col, "name", desc_col, "positive_ratio"] + text_cols]
+
 df = df.dropna(subset=[desc_col])
 
 def clean_text(text):
@@ -82,7 +91,8 @@ def build_content(row):
 
 df["content"] = df.apply(build_content, axis=1)
 
-df = df[[game_id_col, "name", "content"]]
+df = df[[game_id_col, "name", "content", "positive_ratio"]]
+
 df = df.rename(columns={game_id_col: "appid"})
 
 df.to_csv("data/steam_games_clean.csv", index=False, encoding="utf-8")
