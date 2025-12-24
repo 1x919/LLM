@@ -22,7 +22,6 @@
       padding: 60px 20px;
     }
 
-    /* ===== Header ===== */
     .header {
       text-align: center;
       margin-bottom: 50px;
@@ -38,7 +37,6 @@
       font-size: 1.1em;
     }
 
-    /* ===== Question Box ===== */
     .question-box {
       background: #ffffff;
       color: #333;
@@ -49,27 +47,51 @@
 
     .question-label {
       font-size: 1.2em;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       font-weight: bold;
     }
 
-    .question-input {
+    /* ===== Tag Buttons ===== */
+    .tag-group {
       display: flex;
-      gap: 12px;
       flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tag {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: #e5e7ff;
+      color: #333;
+      cursor: pointer;
+      font-size: 0.95em;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+
+    .tag.active {
+      background: #4f6df5;
+      color: #fff;
+    }
+
+    .other-input {
+      margin-top: 12px;
     }
 
     input[type="text"] {
-      flex: 1;
-      padding: 14px 16px;
-      font-size: 1em;
-      border-radius: 10px;
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 0.95em;
+      border-radius: 8px;
       border: 1px solid #ccc;
       outline: none;
     }
 
     button {
-      padding: 14px 22px;
+      margin-top: 20px;
+      width: 100%;
+      padding: 14px;
       font-size: 1em;
       border-radius: 10px;
       border: none;
@@ -83,7 +105,6 @@
       background: #3c55c8;
     }
 
-    /* ===== Answer Area ===== */
     .answer-area {
       margin-top: 40px;
     }
@@ -135,96 +156,179 @@
       color: #aaa;
       font-size: 0.9em;
     }
+    /* ===== 其他進階條件（高級版 Input） ===== */
+.other-input {
+  margin-top: 20px;
+  padding: 18px 18px 16px 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(245, 247, 255, 0.9)
+  );
+  border-radius: 14px;
+  border: 1px solid rgba(79, 109, 245, 0.25);
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.other-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #4f6df5;
+  margin-bottom: 10px;
+}
+
+.other-label::before {
+  content: "+";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #4f6df5;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* input 本體 */
+.other-input input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 0.95em;
+  border-radius: 10px;
+  border: 1px solid #d0d6ff;
+  background: #ffffff;
+  transition: all 0.25s ease;
+  color: #333;
+}
+
+/* placeholder */
+.other-input input::placeholder {
+  color: #9aa0c8;
+  font-style: italic;
+}
+
+/* focus 狀態（重點） */
+.other-input input:focus {
+  outline: none;
+  border-color: #4f6df5;
+  box-shadow:
+    0 0 0 3px rgba(79, 109, 245, 0.18),
+    0 8px 20px rgba(79, 109, 245, 0.15);
+}
+
   </style>
 </head>
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <!-- ===== Header ===== -->
-    <div class="header">
-      <h1>🎮 Steam 遊戲 AI 語意搜尋</h1>
-      <p>用一句話描述你想玩的遊戲，AI 幫你找最適合的作品</p>
-    </div>
-
-    <!-- ===== Question Box ===== -->
-    <div class="question-box">
-      <div class="question-label">
-        ❓ 你現在想找什麼樣的遊戲？
-      </div>
-      <div class="question-input">
-        <input
-          id="query"
-          type="text"
-          placeholder="例如：開放世界、生存、可以自己製作裝備的單人遊戲"
-        />
-        <button onclick="search()">詢問 AI</button>
-      </div>
-    </div>
-
-    <!-- ===== Answer Area ===== -->
-    <div class="answer-area" id="answerArea">
-      <!-- 動態結果 -->
-    </div>
-
-    <footer>
-      本系統使用 SentenceTransformer + FAISS 建立語意搜尋模型
-    </footer>
-
+  <div class="header">
+    <h1>🎮 Steam 遊戲 AI 語意搜尋</h1>
+    <p>請選擇你想要的遊戲類型，AI 會幫你推薦</p>
   </div>
 
-  <script>
-    async function search() {
-      const query = document.getElementById("query").value.trim();
-      const area = document.getElementById("answerArea");
+  <div class="question-box">
+    <div class="question-label">❓ 請選擇遊戲類型（可複選）</div>
 
-      if (!query) {
-        area.innerHTML = "<div class='loading'>請先輸入你的問題。</div>";
-        return;
-      }
+    <div class="tag-group" id="tags">
+      <div class="tag" data-value="survival">生存</div>
+      <div class="tag" data-value="open world">開放世界</div>
+      <div class="tag" data-value="crafting">製作</div>
+      <div class="tag" data-value="sandbox">沙盒</div>
+      <div class="tag" data-value="single player">單人</div>
+      <div class="tag" data-value="multiplayer">多人</div>
+      <div class="tag" data-value="horror">恐怖</div>
+      <div class="tag" data-value="RPG">角色扮演</div>
+      <div class="tag" data-value="strategy">策略</div>
+      <div class="tag" data-value="simulation">模擬</div>
+    </div>
 
-      area.innerHTML = "<div class='loading'>🤖 AI 正在分析你的需求，請稍候…</div>";
+    <div class="other-input">
+        <div class="other-label">其他進階條件（請輸入英文）</div>
+        <input
+            id="other"
+            placeholder="例如：roguelike、tower defense、turn-based"
+        />
+    </div>
 
-      try {
-        const res = await fetch("http://127.0.0.1:8000/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: query,
-            top_k: 5
-          })
-        });
 
-        const data = await res.json();
+    <button onclick="search()">詢問 AI</button>
+  </div>
 
-        let html = `
-          <div class="answer-title">✅ AI 為你推薦以下遊戲：</div>
-          <div class="query-info">
-            原始問題：${data.query_original}<br/>
-            實際搜尋語意：<b>${data.query_used}</b>
+  <div class="answer-area" id="answerArea"></div>
+
+  <footer>
+    本系統使用 SentenceTransformer + FAISS 建立語意搜尋模型
+  </footer>
+
+</div>
+
+<script>
+  const tags = document.querySelectorAll(".tag");
+  tags.forEach(tag => {
+    tag.addEventListener("click", () => {
+      tag.classList.toggle("active");
+    });
+  });
+
+  async function search() {
+    const area = document.getElementById("answerArea");
+    const selected = Array.from(document.querySelectorAll(".tag.active"))
+      .map(t => t.dataset.value);
+
+    const other = document.getElementById("other").value.trim();
+    if (other) selected.push(other);
+
+    if (selected.length === 0) {
+      area.innerHTML = "<div class='loading'>請至少選擇一種遊戲類型。</div>";
+      return;
+    }
+
+    const query = selected.join(" ");
+
+    area.innerHTML = "<div class='loading'>🤖 AI 正在分析你的需求，請稍候…</div>";
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query, top_k: 5 })
+      });
+
+      const data = await res.json();
+
+      let html = `
+        <div class="answer-title">✅ AI 為你推薦以下遊戲：</div>
+        <div class="query-info">
+          使用的搜尋條件：<b>${query}</b>
+        </div>
+      `;
+
+      data.results.forEach(item => {
+        html += `
+          <div class="card">
+            <div class="card-rank">推薦順位 #${item.rank}</div>
+            <div class="card-title">${item.name}</div>
+            <div class="card-score">綜合相似度分數：${item.score.toFixed(3)}</div>
           </div>
         `;
+      });
 
-        data.results.forEach(item => {
-          html += `
-            <div class="card">
-              <div class="card-rank">推薦順位 #${item.rank}</div>
-              <div class="card-title">${item.name}</div>
-              <div class="card-score">
-                綜合相似度分數：${item.score.toFixed(3)}
-              </div>
-            </div>
-          `;
-        });
+      area.innerHTML = html;
 
-        area.innerHTML = html;
-
-      } catch (err) {
-        area.innerHTML = "<div class='loading'>❌ 發生錯誤，請確認後端是否啟動。</div>";
-        console.error(err);
-      }
+    } catch (err) {
+      area.innerHTML = "<div class='loading'>❌ 發生錯誤，請確認後端是否啟動。</div>";
+      console.error(err);
     }
-  </script>
+  }
+</script>
 
 </body>
 </html>
