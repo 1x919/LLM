@@ -13,10 +13,7 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 
 print("Encoding texts (this may take a few minutes)...")
 embeddings = model.encode(
-    texts,
-    show_progress_bar=True,
-    convert_to_numpy=True,
-    normalize_embeddings=True
+    texts, show_progress_bar=True, convert_to_numpy=True, normalize_embeddings=True
 )
 
 print("Building FAISS index...")
@@ -26,6 +23,8 @@ index.add(embeddings)
 
 faiss.write_index(index, "steam_games.index")
 
-df[["appid", "name"]].to_csv("steam_games_meta.csv", index=False)
+df[["appid", "name", "content", "positive_ratio"]].to_csv(
+    "steam_games_meta.csv", index=False
+)
 
-print("Index build complete!")
+print("Index build complete with full metadata!")

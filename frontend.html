@@ -153,10 +153,34 @@
       border-left: 6px solid #4f6df5;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       transition: transform 0.3s;
+      /* 視覺優化：漸顯動畫 */
+      animation: fadeInUp 0.5s ease backwards;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .card:hover {
       transform: scale(1.02);
+    }
+
+    .card-image {
+      width: 100%;
+      height: 180px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      object-fit: cover;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .card-title {
@@ -310,8 +334,13 @@
 
         if (data.results && data.results.length > 0) {
           data.results.forEach(item => {
+            // Steam 圖片網址
+            const imageUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${item.appid}/header.jpg`;
+
             html += `
               <div class="card">
+                <img class="card-image" src="${imageUrl}" alt="${item.name}" 
+                     onerror="this.src='https://via.placeholder.com/460x215?text=Game+Image'">
                 <div class="card-title">#${item.rank} ${item.name}</div>
                 <div class="card-score">匹配度：${(item.score * 100).toFixed(1)}%</div>
                 <div class="card-rationale">

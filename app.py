@@ -4,14 +4,17 @@ from pydantic import BaseModel
 import faiss
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-import re
+import ollama
+import json
+import os
 
 # =========================
-# 1. 載入資源
+# 1. 資源與 Ollama 設定
 # =========================
 INDEX_PATH = "steam_games.index"
 META_PATH = "steam_games_meta.csv"
 MODEL_NAME = "all-MiniLM-L6-v2"
+OLLAMA_MODEL = "llama3"  # 確保您已執行過 ollama run llama3
 
 print("Loading FAISS index...")
 index = faiss.read_index(INDEX_PATH)
@@ -23,9 +26,8 @@ print("Loading embedding model...")
 model = SentenceTransformer(MODEL_NAME)
 
 # =========================
-# 2. 模擬行為追蹤 (Behavior Tracking)
+# 2. 模擬行為追蹤
 # =========================
-# 儲存用戶最近推薦過的遊戲，用來計算「重複性」並提供新鮮感
 user_history = []
 
 
@@ -39,7 +41,7 @@ def update_history(game_name):
 # =========================
 # 3. FastAPI 設定
 # =========================
-app = FastAPI(title="EED Counselor API")
+app = FastAPI(title="EED Counselor AI - Pro")
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,164 +52,164 @@ app.add_middleware(
 )
 
 
-# =========================
-# 4. 資料模型
-# =========================
 class QueryRequest(BaseModel):
     query: str
-    mood: str = "neutral"  # 使用者情緒
-    available_time: int = 60  # 可用時間（分鐘）
-    top_k: int = 5
+    mood: str = "neutral"
+    available_time: int = 60
+    top_k: int = 3
 
 
 # =========================
-# 5. 工具函式與 LLM 提示詞設定
+# 4. LLM 核心邏輯 (查詢理解 & 重排序)
 # =========================
 
-ZH_EN_MAP = {
-    "生存": "survival",
-    "開放世界": "open world",
-    "建造": "base building",
-    "製作": "crafting",
-    "單人": "single player",
-    "多人": "multiplayer",
-    "恐怖": "horror",
-    "動作": "action",
-    "角色扮演": "RPG",
-    "策略": "strategy",
-    "模擬": "simulation",
-    "沙盒": "sandbox",
-    "冒險": "adventure",
-    "壓力": "stress",
-    "疲勞": "tired",
-    "放鬆": "relax",
-}
+
+def expand_query_with_llm(user_query, mood):
+    """
+    [查詢理解] 讓 LLM 將玩家簡單的需求擴展為深層語意特徵
+    """
+    prompt = f"玩家目前心情：{mood}。搜尋需求：{user_query}。請將此需求轉化為一段 40 字以內的遊戲特徵描述（例如：步調緩慢、具備視覺成就感、不需要高度集中力），直接輸出描述文字即可。"
+    try:
+        response = ollama.chat(
+            model=OLLAMA_MODEL, messages=[{"role": "user", "content": prompt}]
+        )
+        expanded = response["message"]["content"].strip()
+        print(f"Expanded Query: {expanded}")
+        return f"{user_query} {expanded}"
+    except:
+        return user_query
 
 
-def zh_to_en(text: str) -> str:
-    translated = text
-    for zh, en in ZH_EN_MAP.items():
-        translated = translated.replace(zh, en)
-    return translated
+def llm_rerank(candidates, mood, available_time):
+    """
+    [LLM 重排序] 讓 AI 從候選名單中選出最符合情緒的前三名
+    """
+    game_list_str = "\n".join(
+        [f"- {c['name']}: {str(c['content'])[:150]}" for c in candidates]
+    )
+
+    # 修正重點：JSON 範例的大括號要寫成 {{ }}
+    prompt = f"""
+    作為遊戲心理諮商師，請從以下候選清單中挑選出「最適合」目前心情「{mood}」且可用時間為「{available_time} 分鐘」的 3 款遊戲。
+    
+    候選清單：
+    {game_list_str}
+
+    請嚴格依照以下 JSON 格式回傳，不要有任何解釋文字：
+    [ {{"name": "遊戲名稱1"}}, {{"name": "遊戲名稱2"}}, {{"name": "遊戲名稱3"}} ]
+    """
+    try:
+        response = ollama.chat(
+            model=OLLAMA_MODEL, messages=[{"role": "user", "content": prompt}]
+        )
+        content = response["message"]["content"].strip()
+
+        # 處理可能的 Markdown 標籤
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+
+        ranked_names = json.loads(content)
+
+        final_list = []
+        for r in ranked_names:
+            # 確保從候選清單中匹配名稱
+            match = next((c for c in candidates if c["name"] == r.get("name")), None)
+            if match:
+                final_list.append(match)
+
+        return final_list if final_list else candidates[:3]
+    except Exception as e:
+        print(f"Rerank Error: {e}")
+        return candidates[:3]
 
 
-def generate_eed_rationale(game_name, mood, time):
-    system_prompt = """
-    你是一位專門解決遊戲倦怠（EED）的 AI 心理諮商師。
-    你的任務是根據玩家的心情和時間推薦遊戲。
+def generate_eed_rationale(game_name, game_content, mood, time):
+    """
+    為選出的遊戲生成暖心的推薦理由
+    """
+    prompt = f"""
+    你是一位專門解決「遊戲倦怠 (EED)」的 AI 心理諮商師。
+    玩家目前的狀態：
+    - 心情：{mood}
+    - 可用時間：{time} 分鐘
+    
+    推薦遊戲資訊：
+    - 名稱：{game_name}
+    - 遊戲特點：{str(game_content)[:300]}
+
+    任務：
+    請寫一段 50 字以內、暖心且具備同理心的推薦文字，說明這款遊戲如何幫助玩家。
     
     規則：
-    1. 語義要溫暖、具備同理心。
-    2. 禁止使用任何引用標註，絕對不能出現 或 。
-    3. 直接輸出推薦文字，不要有開場白。
+    1. 務必使用「繁體中文」回答。
+    2. 直接輸出推薦內容，不要有開場白。
+    3. 語氣要溫暖，像是一位關心玩家的朋友或諮商師。
     """
-    if time <= 45:
-        time_text = "這款遊戲非常適合您現在有限的碎片時間，讓娛樂變得輕鬆可得。"
-    else:
-        time_text = f"既然您有 {time} 分鐘，這款遊戲能提供更深度的沉浸感，幫助您暫時忘卻現實壓力。"
-
-    if "壓力" in mood or "疲" in mood:
-        mood_text = (
-            f"考慮到您目前的 {mood} 狀態，這款遊戲的節奏適中，能有效緩解遊戲倦怠感。"
+    try:
+        response = ollama.chat(
+            model=OLLAMA_MODEL, messages=[{"role": "user", "content": prompt}]
         )
-    else:
-        mood_text = "這款遊戲的風格與您現在的心情非常契合，希望能帶來純粹的愉悅感。"
-
-    # 若未來接入 LLM API，請在系統提示詞 (System Prompt) 加入：
-    # "你是一位遊戲諮商師。嚴禁在輸出中包含任何 或 標籤。"
-
-    return f"{mood_text} {time_text}"
-
-
-def rerank_results(indices, scores, query_en, mood):
-    results = []
-    keywords = query_en.lower().split()
-
-    for idx, score in zip(indices, scores):
-        row = meta.iloc[idx]
-        game_name = row.get("name", "")
-        boost = 0.0
-
-        # 1. 關鍵字加權
-        content = f"{game_name} {row.get('content', '')}".lower()
-        for kw in keywords:
-            if kw in content:
-                boost += 0.05
-
-        # 2. 品質加權 (Positive Ratio)
-        quality = 1.0
-        if "positive_ratio" in row:
-            quality = 0.7 + (row["positive_ratio"] * 0.3)
-
-        # 3. 重複性檢查：如果遊戲在歷史紀錄中，降低分數以鼓勵「新鮮感」
-        if game_name in user_history:
-            boost -= 0.15
-
-        final_score = float(score) * quality + boost
-
-        results.append(
-            {"name": game_name, "content": row.get("content", ""), "score": final_score}
-        )
-
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return results
+        return response["message"]["content"].strip()
+    except:
+        return "這款遊戲非常適合您現在的心情，希望能為您帶來純粹的愉悅感。"
 
 
 # =========================
-# 6. API 端點
+# 5. API 端點
 # =========================
 
 
 @app.post("/search")
 def search_games(req: QueryRequest):
-    time_pref = "short session" if req.available_time < 45 else "immersive session"
-    query_en = zh_to_en(req.query)
+    # Step 1: LLM 查詢理解
+    enhanced_query = expand_query_with_llm(req.query, req.mood)
 
-    # --- 權重強化版 ---
-    # 1. 將 Requirement 放在最前面
-    # 2. 重複兩次 Specific Requirements 以人為增加其在向量空間中的權重
-    enhanced_query = (
-        f"CORE REQUIREMENT: {query_en}. "
-        f"The game MUST BE {query_en}. "
-        f"Context: User is {req.mood} and needs a {time_pref} ({req.available_time} min)."
-    )
-
-    # 2. 向量搜尋 (Embedding)
+    # Step 2: 向量搜尋 (初步篩選 15 筆)
     q_emb = model.encode([enhanced_query], normalize_embeddings=True)
+    scores, indices = index.search(q_emb, 15)
 
-    # 3. FAISS 檢索 (初步篩選 20 筆)
-    scores, indices = index.search(q_emb, 20)
-
-    # 4. 重排序 (加入重複性與品質分析)
-    reranked = rerank_results(indices[0], scores[0], query_en, req.mood)
-
-    # 5. 格式化結果並生成推薦理由
-    final = []
-    for i, item in enumerate(reranked[: req.top_k]):
-        # 更新行為追蹤歷史
-        update_history(item["name"])
-
-        final.append(
+    # Step 3: 基礎過濾與準備候選名單
+    candidates = []
+    for idx, score in zip(indices[0], scores[0]):
+        row = meta.iloc[idx]
+        candidates.append(
             {
-                "rank": i + 1,
-                "name": item["name"],
-                "score": round(item["score"], 3),
-                "rationale": generate_eed_rationale(
-                    item["name"], req.mood, req.available_time
-                ),
+                "appid": row.get("appid", 0),
+                "name": row.get("name", ""),
+                "content": row.get("content", ""),
+                "base_score": float(score),
             }
         )
 
-    return {
-        "status": "success",
-        "user_context": {"mood": req.mood, "time": req.available_time},
-        "results": final,
-    }
+    # Step 4: LLM 重排序 (選出 Top 3)
+    final_top_3 = llm_rerank(candidates, req.mood, req.available_time)
+
+    # Step 5: 生成最終推薦理由
+    results = []
+    for i, item in enumerate(final_top_3[:3]):
+        update_history(item["name"])
+        rationale = generate_eed_rationale(
+            item["name"], item["content"], req.mood, req.available_time
+        )
+
+        results.append(
+            {
+                "rank": i + 1,
+                "appid": int(item["appid"]),
+                "name": item["name"],
+                "score": round(item.get("base_score", 0), 3),
+                "rationale": rationale,
+            }
+        )
+
+    return {"status": "success", "results": results}
 
 
 @app.get("/")
 def root():
-    return {"status": "EED Counselor AI Assistant is running"}
+    return {"status": "EED Counselor AI Pro (Ollama) is running"}
 
 
 if __name__ == "__main__":
