@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8" />
-  <title>Steam 遊戲語意搜尋｜AI 推薦</title>
+  <title>EED Counselor | AI 遊戲健康助手</title>
   <style>
+    /* 保持你原本的深色酷炫 UI 風格 */
     * {
       box-sizing: border-box;
       font-family: "Segoe UI", "Noto Sans TC", sans-serif;
@@ -42,25 +44,25 @@
       color: #333;
       border-radius: 16px;
       padding: 30px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     }
 
     .question-label {
       font-size: 1.2em;
       margin-bottom: 16px;
       font-weight: bold;
+      color: #1e1e2f;
     }
 
-    /* ===== Tag Buttons ===== */
     .tag-group {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
 
     .tag {
-      padding: 10px 14px;
+      padding: 10px 16px;
       border-radius: 999px;
       background: #e5e7ff;
       color: #333;
@@ -68,41 +70,69 @@
       font-size: 0.95em;
       user-select: none;
       transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .tag:hover {
+      background: #d0d6ff;
     }
 
     .tag.active {
       background: #4f6df5;
       color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(79, 109, 245, 0.3);
     }
 
     .other-input {
-      margin-top: 12px;
+      margin-top: 20px;
+      padding: 18px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(245, 247, 255, 0.9));
+      border-radius: 14px;
+      border: 1px solid rgba(79, 109, 245, 0.25);
     }
 
-    input[type="text"] {
+    .other-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9em;
+      font-weight: 600;
+      color: #4f6df5;
+      margin-bottom: 10px;
+    }
+
+    .other-input input {
       width: 100%;
-      padding: 12px 14px;
-      font-size: 0.95em;
-      border-radius: 8px;
-      border: 1px solid #ccc;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #d0d6ff;
       outline: none;
     }
 
+    .other-input input:focus {
+      border-color: #4f6df5;
+      box-shadow: 0 0 0 3px rgba(79, 109, 245, 0.1);
+    }
+
     button {
-      margin-top: 20px;
+      margin-top: 30px;
       width: 100%;
-      padding: 14px;
-      font-size: 1em;
-      border-radius: 10px;
+      padding: 16px;
+      font-size: 1.1em;
+      font-weight: bold;
+      border-radius: 12px;
       border: none;
       background: #4f6df5;
       color: white;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: all 0.3s ease;
     }
 
     button:hover {
       background: #3c55c8;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 109, 245, 0.4);
     }
 
     .answer-area {
@@ -112,223 +142,197 @@
     .answer-title {
       font-size: 1.5em;
       margin-bottom: 20px;
-    }
-
-    .loading {
-      color: #ddd;
-      font-style: italic;
-    }
-
-    .query-info {
-      font-size: 0.95em;
-      color: #bfc4ff;
-      margin-bottom: 16px;
+      color: #fff;
     }
 
     .card {
       background: #2f2f48;
       border-radius: 14px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      padding: 25px;
+      margin-bottom: 20px;
+      border-left: 6px solid #4f6df5;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s;
     }
 
-    .card-rank {
-      font-size: 0.9em;
-      color: #9aa4ff;
-      margin-bottom: 6px;
+    .card:hover {
+      transform: scale(1.02);
     }
 
     .card-title {
-      font-size: 1.2em;
+      font-size: 1.3em;
       font-weight: bold;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      color: #fff;
     }
 
     .card-score {
-      font-size: 0.95em;
-      color: #cfd3ff;
+      font-size: 0.85em;
+      color: #9aa4ff;
+      margin-bottom: 12px;
+    }
+
+    .card-rationale {
+      font-size: 1em;
+      color: #cfcfe8;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 15px;
+      border-radius: 10px;
+      line-height: 1.6;
+      border: 1px dashed rgba(79, 109, 245, 0.3);
+    }
+
+    .time-slider {
+      margin-bottom: 24px;
+    }
+
+    .time-display {
+      color: #4f6df5;
+      font-size: 1.2em;
+    }
+
+    .loading {
+      text-align: center;
+      font-size: 1.1em;
+      color: #bfc4ff;
+      padding: 40px;
     }
 
     footer {
       text-align: center;
       margin-top: 80px;
-      color: #aaa;
+      color: #777;
       font-size: 0.9em;
+      padding-bottom: 40px;
     }
-    /* ===== 其他進階條件（高級版 Input） ===== */
-.other-input {
-  margin-top: 20px;
-  padding: 18px 18px 16px 18px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.9),
-    rgba(245, 247, 255, 0.9)
-  );
-  border-radius: 14px;
-  border: 1px solid rgba(79, 109, 245, 0.25);
-  box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.other-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9em;
-  font-weight: 600;
-  color: #4f6df5;
-  margin-bottom: 10px;
-}
-
-.other-label::before {
-  content: "+";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #4f6df5;
-  color: #fff;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-/* input 本體 */
-.other-input input {
-  width: 100%;
-  padding: 14px 16px;
-  font-size: 0.95em;
-  border-radius: 10px;
-  border: 1px solid #d0d6ff;
-  background: #ffffff;
-  transition: all 0.25s ease;
-  color: #333;
-}
-
-/* placeholder */
-.other-input input::placeholder {
-  color: #9aa0c8;
-  font-style: italic;
-}
-
-/* focus 狀態（重點） */
-.other-input input:focus {
-  outline: none;
-  border-color: #4f6df5;
-  box-shadow:
-    0 0 0 3px rgba(79, 109, 245, 0.18),
-    0 8px 20px rgba(79, 109, 245, 0.15);
-}
-
   </style>
 </head>
+
 <body>
 
-<div class="container">
-
-  <div class="header">
-    <h1>🎮 Steam 遊戲 AI 語意搜尋</h1>
-    <p>請選擇你想要的遊戲類型，AI 會幫你推薦</p>
-  </div>
-
-  <div class="question-box">
-    <div class="question-label">❓ 請選擇遊戲類型（可複選）</div>
-
-    <div class="tag-group" id="tags">
-      <div class="tag" data-value="survival">生存</div>
-      <div class="tag" data-value="open world">開放世界</div>
-      <div class="tag" data-value="crafting">製作</div>
-      <div class="tag" data-value="sandbox">沙盒</div>
-      <div class="tag" data-value="single player">單人</div>
-      <div class="tag" data-value="multiplayer">多人</div>
-      <div class="tag" data-value="horror">恐怖</div>
-      <div class="tag" data-value="RPG">角色扮演</div>
-      <div class="tag" data-value="strategy">策略</div>
-      <div class="tag" data-value="simulation">模擬</div>
+  <div class="container">
+    <div class="header">
+      <h1>🎮 EED Counselor</h1>
+      <p>重建與遊戲的健康關係，重新找回沉浸的快樂</p>
     </div>
 
-    <div class="other-input">
-        <div class="other-label">其他進階條件（請輸入英文）</div>
-        <input
-            id="other"
-            placeholder="例如：roguelike、tower defense、turn-based"
-        />
+    <div class="question-box">
+      <div class="question-label">❓ 想要嘗試的遊戲風格</div>
+      <div class="tag-group" id="tags">
+        <div class="tag" data-value="survival">生存</div>
+        <div class="tag" data-value="open world">開放世界</div>
+        <div class="tag" data-value="single player">單人</div>
+        <div class="tag" data-value="multiplayer">多人</div>
+        <div class="tag" data-value="RPG">角色扮演</div>
+        <div class="tag" data-value="relaxing">放鬆</div>
+        <div class="tag" data-value="action">動作</div>
+      </div>
+
+      <div class="question-label">🧠 你現在的心情感覺如何？</div>
+      <div class="tag-group" id="moodTags">
+        <div class="tag mood-tag" data-value="壓力大">壓力大</div>
+        <div class="tag mood-tag" data-value="疲憊">感到倦怠</div>
+        <div class="tag mood-tag active" data-value="平靜">平靜</div>
+        <div class="tag mood-tag" data-value="無聊">想打發時間</div>
+        <div class="tag mood-tag" data-value="興奮">充滿動力</div>
+      </div>
+
+      <div class="time-slider">
+        <div class="question-label">⏳ 你現在有多少可用時間？ <span class="time-display" id="timeVal">60</span> 分鐘</div>
+        <input type="range" id="timeRange" min="15" max="180" step="15" value="60" style="width:100%"
+          oninput="document.getElementById('timeVal').innerText=this.value">
+      </div>
+
+      <div class="other-input">
+        <div class="other-label">其他補充需求 (英文)</div>
+        <input id="other" placeholder="例如：pixel art, emotional story, difficult boss fights, cyberpunk theme..." />
+      </div>
+
+      <button onclick="search()">詢問 AI 顧問</button>
     </div>
 
+    <div class="answer-area" id="answerArea"></div>
 
-    <button onclick="search()">詢問 AI</button>
+    <footer>
+      EED Counselor - 致力於平衡情緒關懷與技術精準度
+    </footer>
   </div>
 
-  <div class="answer-area" id="answerArea"></div>
-
-  <footer>
-    本系統使用 SentenceTransformer + FAISS 建立語意搜尋模型
-  </footer>
-
-</div>
-
-<script>
-  const tags = document.querySelectorAll(".tag");
-  tags.forEach(tag => {
-    tag.addEventListener("click", () => {
-      tag.classList.toggle("active");
+  <script>
+    // 遊戲標籤切換
+    const tags = document.querySelectorAll("#tags .tag");
+    tags.forEach(tag => {
+      tag.addEventListener("click", () => tag.classList.toggle("active"));
     });
-  });
 
-  async function search() {
-    const area = document.getElementById("answerArea");
-    const selected = Array.from(document.querySelectorAll(".tag.active"))
-      .map(t => t.dataset.value);
-
-    const other = document.getElementById("other").value.trim();
-    if (other) selected.push(other);
-
-    if (selected.length === 0) {
-      area.innerHTML = "<div class='loading'>請至少選擇一種遊戲類型。</div>";
-      return;
-    }
-
-    const query = selected.join(" ");
-
-    area.innerHTML = "<div class='loading'>🤖 AI 正在分析你的需求，請稍候…</div>";
-
-    try {
-      const res = await fetch("http://127.0.0.1:8000/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query, top_k: 5 })
+    // 心情標籤單選切換
+    const moodTags = document.querySelectorAll("#moodTags .tag");
+    moodTags.forEach(tag => {
+      tag.addEventListener("click", () => {
+        moodTags.forEach(t => t.classList.remove("active"));
+        tag.classList.add("active");
       });
+    });
 
-      const data = await res.json();
+    async function search() {
+      const area = document.getElementById("answerArea");
 
-      let html = `
-        <div class="answer-title">✅ AI 為你推薦以下遊戲：</div>
-        <div class="query-info">
-          使用的搜尋條件：<b>${query}</b>
-        </div>
-      `;
+      const selectedTypes = Array.from(document.querySelectorAll("#tags .tag.active"))
+        .map(t => t.dataset.value);
 
-      data.results.forEach(item => {
-        html += `
-          <div class="card">
-            <div class="card-rank">推薦順位 #${item.rank}</div>
-            <div class="card-title">${item.name}</div>
-            <div class="card-score">綜合相似度分數：${item.score.toFixed(3)}</div>
-          </div>
-        `;
-      });
+      const otherText = document.getElementById("other").value.trim();
+      const fullQuery = [...selectedTypes, otherText].filter(x => x).join(" ");
 
-      area.innerHTML = html;
+      const selectedMood = document.querySelector("#moodTags .tag.active").dataset.value;
+      const availableTime = document.getElementById("timeRange").value;
 
-    } catch (err) {
-      area.innerHTML = "<div class='loading'>❌ 發生錯誤，請確認後端是否啟動。</div>";
-      console.error(err);
+      if (!fullQuery) {
+        area.innerHTML = "<div class='loading'>💡 請選擇標籤或輸入一點需求，讓 AI 了解你的喜好。</div>";
+        return;
+      }
+
+      area.innerHTML = "<div class='loading'>🤖 AI 諮商師正在分析您的狀態並篩選適合的遊戲...</div>";
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: fullQuery,
+            mood: selectedMood,
+            available_time: parseInt(availableTime),
+            top_k: 3
+          })
+        });
+
+        const data = await res.json();
+        let html = `<div class="answer-title">✅ 針對您的狀態，AI 顧問推薦：</div>`;
+
+        if (data.results && data.results.length > 0) {
+          data.results.forEach(item => {
+            html += `
+              <div class="card">
+                <div class="card-title">#${item.rank} ${item.name}</div>
+                <div class="card-score">匹配度：${(item.score * 100).toFixed(1)}%</div>
+                <div class="card-rationale">
+                  <strong>💡 為什麼推薦這款遊戲？</strong><br>${item.rationale}
+                </div>
+              </div>
+            `;
+          });
+        } else {
+          html = "<div class='loading'>未能找到完全匹配的遊戲，試著調整一下標籤或心情？</div>";
+        }
+
+        area.innerHTML = html;
+        window.scrollTo({ top: area.offsetTop - 50, behavior: 'smooth' });
+
+      } catch (err) {
+        area.innerHTML = "<div class='loading' style='color:#ff6b6b;'>❌ 無法連線至後端伺服器，請確保 uvicorn 正在執行中。</div>";
+        console.error(err);
+      }
     }
-  }
-</script>
-
+  </script>
 </body>
+
 </html>
