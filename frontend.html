@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>Steam 遊戲語意搜尋｜AI 推薦</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(120deg, #1e1e2f, #2a2a40);
+      color: #f5f5f5;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 60px 20px;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .header h1 {
+      font-size: 2.6em;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #cfcfe8;
+      font-size: 1.1em;
+    }
+
+    /* ===== Question Box ===== */
+    .question-box {
+      background: #ffffff;
+      color: #333;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .question-label {
+      font-size: 1.2em;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .question-input {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 14px 16px;
+      font-size: 1em;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      outline: none;
+    }
+
+    button {
+      padding: 14px 22px;
+      font-size: 1em;
+      border-radius: 10px;
+      border: none;
+      background: #4f6df5;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover {
+      background: #3c55c8;
+    }
+
+    /* ===== Answer Area ===== */
+    .answer-area {
+      margin-top: 40px;
+    }
+
+    .answer-title {
+      font-size: 1.5em;
+      margin-bottom: 20px;
+    }
+
+    .loading {
+      color: #ddd;
+      font-style: italic;
+    }
+
+    .card {
+      background: #2f2f48;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .card-rank {
+      font-size: 0.9em;
+      color: #9aa4ff;
+      margin-bottom: 6px;
+    }
+
+    .card-title {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .card-score {
+      font-size: 0.95em;
+      color: #cfd3ff;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 80px;
+      color: #aaa;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- ===== Header ===== -->
+    <div class="header">
+      <h1>🎮 Steam 遊戲 AI 語意搜尋</h1>
+      <p>用一句話描述你想玩的遊戲，AI 幫你找最適合的作品</p>
+    </div>
+
+    <!-- ===== Question Box ===== -->
+    <div class="question-box">
+      <div class="question-label">
+        ❓ 你現在想找什麼樣的遊戲？
+      </div>
+      <div class="question-input">
+        <input
+          id="query"
+          type="text"
+          placeholder="例如：開放世界、生存、可以自己製作裝備的單人遊戲"
+        />
+        <button onclick="search()">詢問 AI</button>
+      </div>
+    </div>
+
+    <!-- ===== Answer Area ===== -->
+    <div class="answer-area" id="answerArea">
+      <!-- 動態結果 -->
+    </div>
+
+    <footer>
+      本系統使用 SentenceTransformer + FAISS 建立語意搜尋模型
+    </footer>
+
+  </div>
+
+  <script>
+    async function search() {
+      const query = document.getElementById("query").value.trim();
+      const area = document.getElementById("answerArea");
+
+      if (!query) {
+        area.innerHTML = "<div class='loading'>請先輸入你的問題。</div>";
+        return;
+      }
+
+      area.innerHTML = "<div class='loading'>🤖 AI 正在分析你的需求，請稍候…</div>";
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: query,
+            top_k: 5
+          })
+        });
+
+        const data = await res.json();
+
+        let html = `
+          <div class="answer-title">
+            ✅ AI 為你推薦以下遊戲：
+          </div>
+        `;
+
+        data.results.forEach(item => {
+          html += `
+            <div class="card">
+              <div class="card-rank">推薦順位 #${item.rank}</div>
+              <div class="card-title">${item.name}</div>
+              <div class="card-score">相似度分數：${item.score.toFixed(3)}</div>
+            </div>
+          `;
+        });
+
+        area.innerHTML = html;
+
+      } catch (err) {
+        area.innerHTML = "<div class='loading'>❌ 發生錯誤，請確認後端是否啟動。</div>";
+        console.error(err);
+      }
+    }
+  </script>
+
+</body>
+</html>
