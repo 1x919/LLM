@@ -4,11 +4,11 @@ from pydantic import BaseModel
 import faiss
 import pandas as pd
 from sentence_transformers import SentenceTransformer
+import re
 
 # =========================
-# 載入資源（啟動時只做一次）
+# 載入資源
 # =========================
-
 INDEX_PATH = "steam_games.index"
 META_PATH = "steam_games_meta.csv"
 MODEL_NAME = "all-MiniLM-L6-v2"
@@ -25,13 +25,12 @@ model = SentenceTransformer(MODEL_NAME)
 # =========================
 # FastAPI app
 # =========================
-
 app = FastAPI()
 
-# ---------- CORS（關鍵） ----------
+# ---------- CORS ----------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # 本地測試用，之後可改成指定 domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,41 +39,104 @@ app.add_middleware(
 # =========================
 # Request schema
 # =========================
-
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 5
 
 # =========================
+# 工具：中文 → 英文（規則式）
+# =========================
+ZH_EN_MAP = {
+    "生存": "survival",
+    "開放世界": "open world",
+    "建造": "base building",
+    "製作": "crafting",
+    "單人": "single player",
+    "多人": "multiplayer",
+    "恐怖": "horror",
+    "動作": "action",
+    "角色扮演": "RPG",
+    "策略": "strategy",
+    "模擬": "simulation",
+    "沙盒": "sandbox",
+    "冒險": "adventure"
+}
+
+def zh_to_en(query: str) -> str:
+    translated = query
+    for zh, en in ZH_EN_MAP.items():
+        translated = translated.replace(zh, en)
+    return translated
+
+# =========================
+# 工具：reranking
+# =========================
+def rerank_results(indices, scores, query_en):
+    results = []
+
+    keywords = query_en.lower().split()
+
+    for idx, score in zip(indices, scores):
+        row = meta.iloc[idx]
+
+        boost = 0.0
+
+        # keyword 命中加權
+        content = f"{row.get('name', '')}".lower()
+        for kw in keywords:
+            if kw in content:
+                boost += 0.05
+
+        # 品質加權（如果有）
+        quality = 1.0
+        if "positive_ratio" in row:
+            quality = 0.7 + row["positive_ratio"] * 0.3
+
+        final_score = float(score) * quality + boost
+
+        results.append({
+            "name": row["name"],
+            "score": final_score
+        })
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results
+
+# =========================
 # API endpoint
 # =========================
-
 @app.post("/search")
 def search_games(req: QueryRequest):
-    # 將 query 轉成向量
-    q_emb = model.encode([req.query], normalize_embeddings=True)
+    # 1️⃣ 中文 → 英文
+    query_en = zh_to_en(req.query)
 
-    # FAISS 搜尋
-    scores, indices = index.search(q_emb, req.top_k)
+    # 2️⃣ embedding
+    q_emb = model.encode([query_en], normalize_embeddings=True)
 
-    # 組合結果
-    results = []
-    for i, idx in enumerate(indices[0]):
-        results.append({
+    # 3️⃣ FAISS 先抓多一點
+    scores, indices = index.search(q_emb, 20)
+
+    # 4️⃣ rerank
+    reranked = rerank_results(indices[0], scores[0], query_en)
+
+    # 5️⃣ 取前 top_k
+    final = []
+    for i, item in enumerate(reranked[:req.top_k]):
+        final.append({
             "rank": i + 1,
-            "name": meta.iloc[idx]["name"],
-            "score": float(scores[0][i])
+            "name": item["name"],
+            "score": round(item["score"], 3)
         })
 
     return {
-        "query": req.query,
-        "results": results
+        "query_original": req.query,
+        "query_used": query_en,
+        "results": final
     }
 
 # =========================
-# Root（可選，測試用）
+# Root
 # =========================
-
 @app.get("/")
 def root():
-    return {"status": "API is running"}
+    return {"status": "AI search API running"}

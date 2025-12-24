@@ -98,6 +98,12 @@
       font-style: italic;
     }
 
+    .query-info {
+      font-size: 0.95em;
+      color: #bfc4ff;
+      margin-bottom: 16px;
+    }
+
     .card {
       background: #2f2f48;
       border-radius: 14px;
@@ -192,8 +198,10 @@
         const data = await res.json();
 
         let html = `
-          <div class="answer-title">
-            ✅ AI 為你推薦以下遊戲：
+          <div class="answer-title">✅ AI 為你推薦以下遊戲：</div>
+          <div class="query-info">
+            原始問題：${data.query_original}<br/>
+            實際搜尋語意：<b>${data.query_used}</b>
           </div>
         `;
 
@@ -202,7 +210,9 @@
             <div class="card">
               <div class="card-rank">推薦順位 #${item.rank}</div>
               <div class="card-title">${item.name}</div>
-              <div class="card-score">相似度分數：${item.score.toFixed(3)}</div>
+              <div class="card-score">
+                綜合相似度分數：${item.score.toFixed(3)}
+              </div>
             </div>
           `;
         });
